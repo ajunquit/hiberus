@@ -1,0 +1,391 @@
+openapi: 3.0.3
+info:
+  title: Payment Initiation API
+  version: 1.0.0
+  description: >
+    REST contract for the migrated PaymentOrder capability aligned with the
+    BIAN Payment Initiation service domain. The legacy SOAP WSDL is used only
+    as an analysis input for the resource model and field mapping.
+servers:
+  - url: http://localhost:8075
+    description: Local development
+tags:
+  - name: PaymentOrders
+    description: PaymentOrder operations aligned with BIAN Payment Initiation
+paths:
+  /payment-initiation/payment-orders:
+    post:
+      tags:
+        - PaymentOrders
+      summary: Initiate a payment order
+      description: >
+        Creates a new PaymentOrder resource from the incoming initiation data
+        and returns the created order in its initial business state.
+      operationId: initiatePaymentOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentOrderInitiationRequest'
+            examples:
+              acceptedOrder:
+                value:
+                  externalReference: EXT-1
+                  debtorAccount:
+                    iban: EC12DEBTOR
+                  creditorAccount:
+                    iban: EC98CREDITOR
+                  instructedAmount:
+                    amount: 150.75
+                    currency: USD
+                  remittanceInformation: Factura 001-123
+                  requestedExecutionDate: '2025-10-31'
+      responses:
+        '201':
+          description: Payment order created successfully
+          headers:
+            Location:
+              description: Absolute URL of the created PaymentOrder resource.
+              schema:
+                type: string
+                format: uri
+                example: http://localhost:8075/payment-initiation/payment-orders/PO-0001
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+              examples:
+                created:
+                  value:
+                    paymentOrderId: PO-0001
+                    externalReference: EXT-1
+                    debtorAccount:
+                      iban: EC12DEBTOR
+                    creditorAccount:
+                      iban: EC98CREDITOR
+                    instructedAmount:
+                      amount: 150.75
+                      currency: USD
+                    remittanceInformation: Factura 001-123
+                    requestedExecutionDate: '2025-10-31'
+                    status: ACCEPTED
+                    createdAt: '2025-10-30T16:20:00Z'
+                    lastUpdate: '2025-10-30T16:20:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /payment-initiation/payment-orders/{paymentOrderId}:
+    get:
+      tags:
+        - PaymentOrders
+      summary: Retrieve a payment order
+      description: Returns the complete PaymentOrder resource by identifier.
+      operationId: retrievePaymentOrder
+      parameters:
+        - $ref: '#/components/parameters/PaymentOrderId'
+      responses:
+        '200':
+          description: Payment order found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+              examples:
+                settledOrder:
+                  value:
+                    paymentOrderId: PO-0001
+                    externalReference: EXT-1
+                    debtorAccount:
+                      iban: EC12DEBTOR
+                    creditorAccount:
+                      iban: EC98CREDITOR
+                    instructedAmount:
+                      amount: 150.75
+                      currency: USD
+                    remittanceInformation: Factura 001-123
+                    requestedExecutionDate: '2025-10-31'
+                    status: SETTLED
+                    createdAt: '2025-10-30T16:20:00Z'
+                    lastUpdate: '2025-10-30T16:25:30Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /payment-initiation/payment-orders/{paymentOrderId}/status:
+    get:
+      tags:
+        - PaymentOrders
+      summary: Retrieve payment order status
+      description: Returns the current business status for a PaymentOrder.
+      operationId: retrievePaymentOrderStatus
+      parameters:
+        - $ref: '#/components/parameters/PaymentOrderId'
+      responses:
+        '200':
+          description: Payment order status found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrderStatusView'
+              examples:
+                statusView:
+                  value:
+                    paymentOrderId: PO-0001
+                    status: SETTLED
+                    lastUpdate: '2025-10-30T16:25:30Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  parameters:
+    PaymentOrderId:
+      name: paymentOrderId
+      in: path
+      required: true
+      description: Internal identifier generated for the PaymentOrder resource.
+      schema:
+        type: string
+        minLength: 7
+        maxLength: 40
+        pattern: '^PO-[A-Z0-9-]{4,36}$'
+        example: PO-0001
+  responses:
+    BadRequest:
+      description: The request is syntactically valid JSON but fails validation or path constraints.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidBody:
+              value:
+                type: https://api.hiberus.local/problems/validation-error
+                title: Request validation failed
+                status: 400
+                detail: One or more fields contain invalid values.
+                instance: /payment-initiation/payment-orders
+                invalidParams:
+                  - name: debtorAccount.iban
+                    reason: must match the expected IBAN format
+    NotFound:
+      description: The requested PaymentOrder does not exist.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            missingPaymentOrder:
+              value:
+                type: https://api.hiberus.local/problems/payment-order-not-found
+                title: PaymentOrder not found
+                status: 404
+                detail: No payment order exists for the provided identifier.
+                instance: /payment-initiation/payment-orders/PO-9999
+    InternalServerError:
+      description: Unexpected error while processing the request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            internalError:
+              value:
+                type: https://api.hiberus.local/problems/internal-server-error
+                title: Internal server error
+                status: 500
+                detail: The service could not complete the request due to an unexpected condition.
+                instance: /payment-initiation/payment-orders/PO-0001
+  schemas:
+    PaymentOrderInitiationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - externalReference
+        - debtorAccount
+        - creditorAccount
+        - instructedAmount
+        - requestedExecutionDate
+      properties:
+        externalReference:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Client-provided reference that links the order to the upstream business process.
+          example: EXT-1
+        debtorAccount:
+          $ref: '#/components/schemas/AccountReference'
+        creditorAccount:
+          $ref: '#/components/schemas/AccountReference'
+        instructedAmount:
+          $ref: '#/components/schemas/InstructedAmount'
+        remittanceInformation:
+          type: string
+          minLength: 1
+          maxLength: 140
+          description: Remittance text provided by the payment initiator.
+          example: Factura 001-123
+        requestedExecutionDate:
+          type: string
+          format: date
+          description: Date on which the payment should be executed.
+          example: '2025-10-31'
+    PaymentOrder:
+      type: object
+      additionalProperties: false
+      required:
+        - paymentOrderId
+        - externalReference
+        - debtorAccount
+        - creditorAccount
+        - instructedAmount
+        - requestedExecutionDate
+        - status
+        - createdAt
+        - lastUpdate
+      properties:
+        paymentOrderId:
+          type: string
+          minLength: 7
+          maxLength: 40
+          pattern: '^PO-[A-Z0-9-]{4,36}$'
+          example: PO-0001
+        externalReference:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: EXT-1
+        debtorAccount:
+          $ref: '#/components/schemas/AccountReference'
+        creditorAccount:
+          $ref: '#/components/schemas/AccountReference'
+        instructedAmount:
+          $ref: '#/components/schemas/InstructedAmount'
+        remittanceInformation:
+          type: string
+          minLength: 1
+          maxLength: 140
+          example: Factura 001-123
+        requestedExecutionDate:
+          type: string
+          format: date
+          example: '2025-10-31'
+        status:
+          $ref: '#/components/schemas/PaymentOrderStatusCode'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-30T16:20:00Z'
+        lastUpdate:
+          type: string
+          format: date-time
+          example: '2025-10-30T16:25:30Z'
+    PaymentOrderStatusView:
+      type: object
+      additionalProperties: false
+      required:
+        - paymentOrderId
+        - status
+        - lastUpdate
+      properties:
+        paymentOrderId:
+          type: string
+          minLength: 7
+          maxLength: 40
+          pattern: '^PO-[A-Z0-9-]{4,36}$'
+          example: PO-0001
+        status:
+          $ref: '#/components/schemas/PaymentOrderStatusCode'
+        lastUpdate:
+          type: string
+          format: date-time
+          example: '2025-10-30T16:25:30Z'
+    AccountReference:
+      type: object
+      additionalProperties: false
+      required:
+        - iban
+      properties:
+        iban:
+          type: string
+          minLength: 8
+          maxLength: 34
+          pattern: '^[A-Z]{2}[0-9A-Z]{6,32}$'
+          description: Account identifier in IBAN-like format expected by the migrated service.
+          example: EC12DEBTOR
+    InstructedAmount:
+      type: object
+      additionalProperties: false
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: number
+          minimum: 0.01
+          multipleOf: 0.01
+          description: Monetary amount to be transferred.
+          example: 150.75
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 currency code.
+          example: USD
+    PaymentOrderStatusCode:
+      type: string
+      description: Business status for the migrated PaymentOrder resource.
+      enum:
+        - ACCEPTED
+        - SETTLED
+        - REJECTED
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://api.hiberus.local/problems/validation-error
+        title:
+          type: string
+          example: Request validation failed
+        status:
+          type: integer
+          format: int32
+          minimum: 400
+          maximum: 599
+          example: 400
+        detail:
+          type: string
+          example: One or more fields contain invalid values.
+        instance:
+          type: string
+          example: /payment-initiation/payment-orders
+        invalidParams:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvalidParam'
+    InvalidParam:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - reason
+      properties:
+        name:
+          type: string
+          example: debtorAccount.iban
+        reason:
+          type: string
+          example: must match the expected IBAN format
