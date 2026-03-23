@@ -1,4 +1,5 @@
 .git
+.generated
 .m2
 .vscode
 target

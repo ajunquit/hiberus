@@ -92,9 +92,11 @@ Esto ejecuta:
 
 ## OpenAPI y código generado
 
-Las interfaces y modelos bajo `com.hiberus.candidateapi.generated.*` no están en `src/main/java`. Se generan desde [openapi/payment-initiation-api.yaml](openapi/payment-initiation-api.yaml) durante el build Maven y se escriben en `target/generated-sources/openapi`.
+Las interfaces y modelos bajo `com.hiberus.candidateapi.generated.*` no están en `src/main/java`. Se generan desde [openapi/payment-initiation-api.yaml](openapi/payment-initiation-api.yaml) durante el build Maven y se escriben en `.generated/openapi/src/main/java`.
 
-Esto implica que un IDE puede marcar imports en rojo si el proyecto se abre antes de generar fuentes, aunque el código compile correctamente con Maven.
+Se eligio una carpeta estable fuera de `target/` para que VS Code no pierda esas clases generadas tras limpiezas del proyecto o refrescos del workspace.
+
+Esto implica que un IDE puede marcar imports en rojo si el proyecto se abre antes de generar fuentes por primera vez, aunque el código compile correctamente con Maven.
 
 ### Regenerar fuentes
 
@@ -111,9 +113,9 @@ En Windows:
 ### Si VS Code marca falsos errores
 
 1. Ejecuta `generate-sources` o `compile`.
-2. Recarga el proyecto Maven.
+2. Espera a que VS Code recargue la configuración Maven de forma automática.
 3. Ejecuta `Java: Clean Java Language Server Workspace`.
-4. Verifica que exista `target/generated-sources/openapi`.
+4. Verifica que exista `.generated/openapi/src/main/java`.
 
 ## Ejecución con Docker
 

@@ -96,6 +96,18 @@ Motivo:
 - Parte del material inicial del ejercicio apuntaba a `8080`.
 - Era necesario dejar consistente el repositorio final con la configuracion efectiva del servicio.
 
+### 9. Estabilizacion de fuentes generadas para VS Code
+
+Correccion manual:
+
+- Mover la salida de OpenAPI Generator a una carpeta estable `.generated/openapi`, versionar la configuracion minima de VS Code y ajustar exclusiones de Docker y Checkstyle para ese arbol generado.
+
+Motivo:
+
+- En VS Code era posible ver imports en rojo sobre `com.hiberus.candidateapi.generated.*` aunque Maven compilara correctamente.
+- El problema no estaba en el codigo funcional, sino en la resolucion del IDE sobre fuentes generadas dentro de `target/`.
+- Dejar una ruta estable fuera de `target/` reduce falsos positivos, mejora la experiencia de revision y hace mas predecible la sincronizacion del proyecto tras abrirlo en frio.
+
 ## Validacion humana esperada
 
 El valor de estas correcciones esta en que muestran intervencion humana sobre:
@@ -105,3 +117,5 @@ El valor de estas correcciones esta en que muestran intervencion humana sobre:
 - coherencia entre dominio y API
 - calidad del build
 - adecuacion final a los criterios del PDF
+
+
