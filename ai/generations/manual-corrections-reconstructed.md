@@ -8,73 +8,40 @@ Este documento no es un log historico literal. Es una reconstruccion razonada de
 
 ## Correcciones manuales plausibles
 
-### 1. Ajuste del mapping entre legado SOAP y recurso REST
+### 1. Refinamiento del contrato OpenAPI
 
 Correccion manual:
 
-- Separar `GET /payment-orders/{id}` de `GET /payment-orders/{id}/status`, aunque el WSDL legado solo expone una consulta de estado.
+- Endurecer validaciones y restricciones clave del contrato (`IBAN`, `currency`, `paymentOrderId`, obligatorios).
 
 Motivo:
 
-- El contrato REST exigido por la prueba pide recuperar la orden completa.
-- Fue necesario decidir que el microservicio mantuviera estado propio para soportar esa capacidad.
+- La generacion inicial suele quedarse corta en reglas de formato y semantica.
+- La version final debia reflejar invariantes reales del dominio.
 
-### 2. Refinamiento del contrato OpenAPI
-
-Correccion manual:
-
-- Endurecer validaciones de IBAN, currency, `paymentOrderId` y campos obligatorios.
-
-Motivo:
-
-- Un borrador generado suele quedarse corto en restricciones de formato y semantica.
-- La version final necesitaba reflejar invariantes de dominio y producir errores consistentes.
-
-### 3. Aterrizaje del dominio hexagonal
+### 2. Aterrizaje del dominio hexagonal
 
 Correccion manual:
 
-- Reemplazar una posible estructura inicial demasiado anemica por value objects (`AccountNumber`, `MonetaryAmount`) y un agregado `PaymentOrder` con invariantes.
+- Consolidar el dominio con value objects (`AccountNumber`, `MonetaryAmount`) y un agregado `PaymentOrder` con invariantes.
 
 Motivo:
 
 - La prueba exige un dominio limpio y mapeo claro request/response <-> dominio.
-- Esa estructura reduce reglas dispersas en controladores o mappers.
+- Esto evita reglas de negocio dispersas en controladores y mappers.
 
-### 4. Manejo de errores alineado con una API seria
-
-Correccion manual:
-
-- Introducir `application/problem+json`, `RestExceptionHandler` y errores de dominio/aplicacion.
-
-Motivo:
-
-- Una generacion inicial centrada solo en endpoints puede dejar respuestas de error heterogeneas.
-- Se necesitaba consistencia HTTP y trazabilidad de fallos de validacion y negocio.
-
-### 5. Exclusiones de calidad sobre codigo generado
+### 3. Manejo de errores alineado con una API seria
 
 Correccion manual:
 
-- Excluir `generated/**` y la clase bootstrap de ciertas metricas y analisis.
+- Introducir `application/problem+json` y un manejo centralizado de errores de dominio y aplicacion.
 
 Motivo:
 
-- JaCoCo, Checkstyle y SpotBugs deben medir el codigo mantenido por el equipo, no el producido automaticamente por OpenAPI Generator.
-- Sin este ajuste, las metricas se vuelven ruidosas y menos defendibles.
+- Una implementacion centrada solo en endpoints suele dejar respuestas heterogeneas.
+- Se necesitaba consistencia HTTP para validaciones y errores de negocio.
 
-### 6. Ajuste del wrapper Maven en Windows
-
-Correccion manual:
-
-- Corregir el comportamiento del wrapper de Windows para evitar fallos al resolver rutas locales de Maven.
-
-Motivo:
-
-- El entorno real de ejecucion mostro problemas practicos que no estaban cubiertos por la configuracion inicial.
-- Sin esta correccion, la reproducibilidad local quedaba comprometida.
-
-### 7. Sustitucion del cliente de pruebas E2E
+### 4. Sustitucion del cliente de pruebas E2E
 
 Correccion manual:
 
@@ -85,18 +52,7 @@ Motivo:
 - El PDF pide explicitamente `WebTestClient` o `RestAssured`.
 - El cambio mantiene cobertura E2E y alinea la implementacion con el entregable esperado.
 
-### 8. Alineacion documental del puerto y artefactos base
-
-Correccion manual:
-
-- Actualizar documentacion, Docker y material base para reflejar el puerto real `8075`.
-
-Motivo:
-
-- Parte del material inicial del ejercicio apuntaba a `8080`.
-- Era necesario dejar consistente el repositorio final con la configuracion efectiva del servicio.
-
-### 9. Estabilizacion de fuentes generadas para VS Code
+### 5. Estabilizacion de fuentes generadas para VS Code
 
 Correccion manual:
 
@@ -106,7 +62,7 @@ Motivo:
 
 - En VS Code era posible ver imports en rojo sobre `com.hiberus.candidateapi.generated.*` aunque Maven compilara correctamente.
 - El problema no estaba en el codigo funcional, sino en la resolucion del IDE sobre fuentes generadas dentro de `target/`.
-- Dejar una ruta estable fuera de `target/` reduce falsos positivos, mejora la experiencia de revision y hace mas predecible la sincronizacion del proyecto tras abrirlo en frio.
+- Dejar una ruta estable fuera de `target/` reduce falsos positivos y hace mas predecible la sincronizacion del proyecto tras abrirlo en frio.
 
 ## Validacion humana esperada
 
@@ -115,7 +71,5 @@ El valor de estas correcciones esta en que muestran intervencion humana sobre:
 - decisiones de arquitectura
 - restricciones del contrato
 - coherencia entre dominio y API
-- calidad del build
-- adecuacion final a los criterios del PDF
-
-
+- adecuacion del stack de pruebas al PDF
+- experiencia real de trabajo en VS Code
