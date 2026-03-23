@@ -78,6 +78,31 @@ Esto ejecuta:
 - Checkstyle
 - SpotBugs
 
+## OpenAPI y código generado
+
+Las interfaces y modelos bajo `com.hiberus.candidateapi.generated.*` no están en `src/main/java`. Se generan desde [openapi/payment-initiation-api.yaml](openapi/payment-initiation-api.yaml) durante el build Maven y se escriben en `target/generated-sources/openapi`.
+
+Esto implica que un IDE puede marcar imports en rojo si el proyecto se abre antes de generar fuentes, aunque el código compile correctamente con Maven.
+
+### Regenerar fuentes
+
+```bash
+./mvnw generate-sources
+```
+
+En Windows:
+
+```powershell
+.\mvnw.cmd generate-sources
+```
+
+### Si VS Code marca falsos errores
+
+1. Ejecuta `generate-sources` o `compile`.
+2. Recarga el proyecto Maven.
+3. Ejecuta `Java: Clean Java Language Server Workspace`.
+4. Verifica que exista `target/generated-sources/openapi`.
+
 ## Ejecución con Docker
 
 ### Construir imagen
