@@ -1,5 +1,6 @@
 package com.hiberus.candidateapi;
 
+import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hiberus.candidateapi.generated.model.AccountReference;
@@ -9,23 +10,30 @@ import com.hiberus.candidateapi.generated.model.PaymentOrderInitiationRequest;
 import com.hiberus.candidateapi.generated.model.PaymentOrderStatusCode;
 import com.hiberus.candidateapi.generated.model.PaymentOrderStatusView;
 import com.hiberus.candidateapi.generated.model.Problem;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import io.restassured.response.Response;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class PaymentOrdersApiIntegrationTest {
 
-	@Autowired
-	private TestRestTemplate restTemplate;
+	@LocalServerPort
+	private int port;
+
+	@BeforeEach
+	void setUpRestAssured() {
+		RestAssured.baseURI = "http://localhost";
+		RestAssured.port = port;
+		RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
+	}
 
 	@Test
 	void shouldInitiateRetrieveAndRetrieveStatusForPaymentOrder() {
@@ -35,49 +43,64 @@ class PaymentOrdersApiIntegrationTest {
 			.creditorAccount(new AccountReference().iban("EC98CREDITOR"))
 			.instructedAmount(new InstructedAmount().amount(new BigDecimal("150.75")).currency("USD"))
 			.remittanceInformation("Factura 001-123")
-			.requestedExecutionDate(java.time.LocalDate.parse("2025-10-31"));
+			.requestedExecutionDate(LocalDate.parse("2025-10-31"));
 
-		ResponseEntity<PaymentOrder> createResponse = restTemplate.postForEntity(
-			"/payment-initiation/payment-orders",
-			request,
-			PaymentOrder.class
-		);
+		Response createResponse = given()
+			.contentType(ContentType.JSON)
+			.body(request)
+			.when()
+			.post("/payment-initiation/payment-orders")
+			.then()
+			.statusCode(HttpStatus.CREATED.value())
+			.extract()
+			.response();
 
-		assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-		assertThat(createResponse.getHeaders().getLocation()).isNotNull();
-		assertThat(createResponse.getBody()).isNotNull();
-		assertThat(createResponse.getBody().getStatus()).isEqualTo(PaymentOrderStatusCode.ACCEPTED);
+		PaymentOrder createdPaymentOrder = createResponse.as(PaymentOrder.class);
+		assertThat(createResponse.getHeader("Location")).isNotBlank();
+		assertThat(createdPaymentOrder).isNotNull();
+		assertThat(createdPaymentOrder.getStatus()).isEqualTo(PaymentOrderStatusCode.ACCEPTED);
 
-		String paymentOrderId = createResponse.getBody().getPaymentOrderId();
+		String paymentOrderId = createdPaymentOrder.getPaymentOrderId();
 
-		ResponseEntity<PaymentOrder> retrieveResponse = restTemplate.getForEntity(
-			"/payment-initiation/payment-orders/" + paymentOrderId,
-			PaymentOrder.class
-		);
-		ResponseEntity<PaymentOrderStatusView> statusResponse = restTemplate.getForEntity(
-			"/payment-initiation/payment-orders/" + paymentOrderId + "/status",
-			PaymentOrderStatusView.class
-		);
+		PaymentOrder retrieveResponse = given()
+			.accept(ContentType.JSON)
+			.when()
+			.get("/payment-initiation/payment-orders/{paymentOrderId}", paymentOrderId)
+			.then()
+			.statusCode(HttpStatus.OK.value())
+			.extract()
+			.as(PaymentOrder.class);
 
-		assertThat(retrieveResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(retrieveResponse.getBody()).isNotNull();
-		assertThat(retrieveResponse.getBody().getPaymentOrderId()).isEqualTo(paymentOrderId);
-		assertThat(statusResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(statusResponse.getBody()).isNotNull();
-		assertThat(statusResponse.getBody().getPaymentOrderId()).isEqualTo(paymentOrderId);
+		PaymentOrderStatusView statusResponse = given()
+			.accept(ContentType.JSON)
+			.when()
+			.get("/payment-initiation/payment-orders/{paymentOrderId}/status", paymentOrderId)
+			.then()
+			.statusCode(HttpStatus.OK.value())
+			.extract()
+			.as(PaymentOrderStatusView.class);
+
+		assertThat(retrieveResponse).isNotNull();
+		assertThat(retrieveResponse.getPaymentOrderId()).isEqualTo(paymentOrderId);
+		assertThat(statusResponse).isNotNull();
+		assertThat(statusResponse.getPaymentOrderId()).isEqualTo(paymentOrderId);
 	}
 
 	@Test
 	void shouldReturnProblemDetailsWhenPaymentOrderDoesNotExist() {
-		ResponseEntity<Problem> response = restTemplate.getForEntity(
-			"/payment-initiation/payment-orders/PO-9999",
-			Problem.class
-		);
+		Response response = given()
+			.accept("application/problem+json")
+			.when()
+			.get("/payment-initiation/payment-orders/{paymentOrderId}", "PO-9999")
+			.then()
+			.statusCode(HttpStatus.NOT_FOUND.value())
+			.extract()
+			.response();
 
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-		assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
-		assertThat(response.getBody()).isNotNull();
-		assertThat(response.getBody().getTitle()).isEqualTo("PaymentOrder not found");
+		Problem problem = response.as(Problem.class);
+		assertThat(response.getContentType()).startsWith("application/problem+json");
+		assertThat(problem).isNotNull();
+		assertThat(problem.getTitle()).isEqualTo("PaymentOrder not found");
 	}
 
 	@Test
@@ -88,43 +111,53 @@ class PaymentOrdersApiIntegrationTest {
 			"instructedAmount", Map.of("amount", 150.75, "currency", "USD")
 		);
 
-		ResponseEntity<Problem> response = restTemplate.postForEntity(
-			"/payment-initiation/payment-orders",
-			request,
-			Problem.class
-		);
+		Response response = given()
+			.contentType(ContentType.JSON)
+			.accept("application/problem+json")
+			.body(request)
+			.when()
+			.post("/payment-initiation/payment-orders")
+			.then()
+			.statusCode(HttpStatus.BAD_REQUEST.value())
+			.extract()
+			.response();
 
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-		assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
-		assertThat(response.getBody()).isNotNull();
-		assertThat(response.getBody().getTitle()).isEqualTo("Request validation failed");
-		assertThat(response.getBody().getInvalidParams()).isNotEmpty();
+		Problem problem = response.as(Problem.class);
+		assertThat(response.getContentType()).startsWith("application/problem+json");
+		assertThat(problem).isNotNull();
+		assertThat(problem.getTitle()).isEqualTo("Request validation failed");
+		assertThat(problem.getInvalidParams()).isNotEmpty();
 	}
 
 	@Test
 	void shouldReturnProblemDetailsWhenPathVariableDoesNotMatchContract() {
-		ResponseEntity<Problem> response = restTemplate.getForEntity(
-			"/payment-initiation/payment-orders/invalid/status",
-			Problem.class
-		);
+		Problem problem = given()
+			.accept("application/problem+json")
+			.when()
+			.get("/payment-initiation/payment-orders/{paymentOrderId}/status", "invalid")
+			.then()
+			.statusCode(HttpStatus.BAD_REQUEST.value())
+			.extract()
+			.as(Problem.class);
 
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-		assertThat(response.getBody()).isNotNull();
-		assertThat(response.getBody().getInvalidParams()).isNotEmpty();
+		assertThat(problem).isNotNull();
+		assertThat(problem.getInvalidParams()).isNotEmpty();
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	void shouldExposePaymentInitiationMetadataOnInfoEndpoint() {
-		ResponseEntity<Map> response = restTemplate.exchange(
-			"/actuator/info",
-			HttpMethod.GET,
-			HttpEntity.EMPTY,
-			Map.class
-		);
+		Map<String, Object> response = given()
+			.accept(ContentType.JSON)
+			.when()
+			.get("/actuator/info")
+			.then()
+			.statusCode(HttpStatus.OK.value())
+			.extract()
+			.as(Map.class);
 
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(response.getBody()).containsKey("paymentInitiation");
-		assertThat(((Map<?, ?>) response.getBody().get("paymentInitiation")).get("behaviorQualifier"))
+		assertThat(response).containsKey("paymentInitiation");
+		assertThat(((Map<String, Object>) response.get("paymentInitiation")).get("behaviorQualifier"))
 			.isEqualTo("PaymentOrder");
 	}
 }

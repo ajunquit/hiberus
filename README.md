@@ -166,6 +166,7 @@ curl "http://localhost:8075/payment-initiation/payment-orders/PO-0001/status"
 - Cobertura JaCoCo: superior al 80%
 - Checkstyle: sin errores
 - SpotBugs: sin hallazgos
+- Integracion E2E implementada con RestAssured
 
 Los reportes se generan en `target/site/jacoco` y `target/spotbugsXml.xml`.
 
@@ -180,5 +181,15 @@ Los reportes se generan en `target/site/jacoco` y `target/spotbugsXml.xml`.
 La carpeta [ai/](ai/) documenta:
 
 - decisiones de diseño
-- prompts de trabajo
+- prompts de trabajo y resumen de respuestas
 - resúmenes de generación y refinamiento
+- mapping entre contrato y dominio
+- correcciones manuales reconstruidas e inferidas
+
+Documentos principales:
+
+- [ai/prompts.md](ai/prompts.md)
+- [ai/decisions.md](ai/decisions.md)
+- [ai/generations/implementation-summary.md](ai/generations/implementation-summary.md)
+- [ai/generations/openapi-to-domain-mapping.md](ai/generations/openapi-to-domain-mapping.md)
+- [ai/generations/manual-corrections-reconstructed.md](ai/generations/manual-corrections-reconstructed.md)
