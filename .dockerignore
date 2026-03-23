@@ -1,0 +1,8 @@
+.git
+.m2
+.vscode
+target
+_zip_analysis
+ai
+*.log
+HELP.md

@@ -1,0 +1,13 @@
+services:
+  candidateapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: candidateapi:local
+    ports:
+      - "8075:8075"
+    environment:
+      SERVER_PORT: 8075
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+      JAVA_OPTS: -XX:+UseContainerSupport
+    restart: unless-stopped
