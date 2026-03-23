@@ -2,7 +2,7 @@
 .m2
 .vscode
 target
-_zip_analysis
+technical-test-baseline
 ai
 *.log
 HELP.md

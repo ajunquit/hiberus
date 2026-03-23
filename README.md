@@ -12,6 +12,18 @@ El servicio expone una API REST que modela el alta y la consulta de órdenes de 
 
 El contrato fuente está en [openapi/payment-initiation-api.yaml](openapi/payment-initiation-api.yaml).
 
+## Material base del ejercicio
+
+Los artefactos originales y el análisis inicial que sirvieron como punto de partida quedaron versionados en `technical-test-baseline/`.
+
+Ese directorio incluye:
+
+- el PDF original de la prueba
+- la colección Postman
+- el WSDL legado
+- las muestras XML
+- la extracción a texto usada durante el análisis inicial
+
 ## Stack técnico
 
 - Java 17
